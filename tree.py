@@ -120,6 +120,15 @@ class Tree:
         else:
             self._insert_after_parent(value, parent_value)
 
+    # Deletes node from a tree
+    def delete(self, value):
+        if self.root is None:
+            raise ValueError("Cannot delete node: tree is empty")
+        elif value == self.root.value:
+            self._delete_root()
+        else:
+            self._delete_node(value)
+
     # This method checks whether a tree is complete
     def is_complete(self):
 
@@ -212,6 +221,41 @@ class Tree:
         # Return False if current node has neither 0 nor max children
         return False
 
+    # Checks if a tree is balanced:
+    # all subtrees must be balanced and their heights must differ by at most 1
+    def is_balanced(self, current):
+
+        # Empty tree is considered balanced
+        if self.root is None:
+            return 0, True
+
+        # Max and min amount of levels in subtrees
+        max_levels = 0
+        min_levels = self.height
+
+        # Find each subtree's amount of levels and whether it's balanced
+        for child_index in range(0, self.order):
+
+            # If child is non-existent, it's an empty tree
+            if child_index > len(current.children) - 1:
+                subtree = (0, True)
+
+            # If child exists, check if it's a root of a balanced subtree
+            else:
+                subtree = self.is_balanced(current.children[child_index])
+
+            # Find longest and shortest subtrees' amount of levels
+            max_levels = max(subtree[0], max_levels)
+            min_levels = min(subtree[0], min_levels)
+
+            # As soon as there's a big difference between the number of levels of subtrees
+            # or one of subtrees is imbalanced, we know to return False
+            if max_levels - min_levels > 1 or subtree[1] is False:
+                return max_levels + 1, False
+
+        # Executes only if balanced tree properties are satisfied
+        return max_levels + 1, True
+
     # Searches for the highest leftmost open spot in the tree for insertion
     def _find_first_available_parent(self):
         queue = deque()
@@ -251,3 +295,56 @@ class Tree:
         else:
             raise ValueError(f"Cannot insert new node: "
                              f"parent node with the value of {parent_value} does not exist in the tree")
+
+    # Deletes root from a tree
+    def _delete_root(self):
+        if not self.root.children:
+            self.root = None
+        elif len(self.root.children) == 1:
+            self.root = self.root.children[0]
+        else:
+            self._delete_node_with_mult_children(self.root)
+
+    # Deletes node with multiple children by pulling the leftmost one up
+    # and doing the same for all it's descendants until it reaches the end
+    def _delete_node_with_mult_children(self, node_to_delete):
+        while node_to_delete.children:
+            parent = node_to_delete
+            node_to_delete = node_to_delete.children[0]
+            parent.value = node_to_delete.value
+        parent.children.pop(0)
+
+    # Deletes any non-root node from a tree
+    def _delete_node(self, value):
+
+        # Find parent of the node that is being deleted
+        parent, index = self._find_parent(value, self.root)
+
+        # If parent wasn't found, the node that is being deleted doesn't exist
+        if (parent, index) == (None, None):
+            raise ValueError(f"Cannot delete node: {value} does not exists in the tree")
+
+        node_to_delete = parent.children[index]
+
+        # If it's a leaf node, remove it from it's parent's children list
+        if not node_to_delete.children:
+            parent.children.pop(index)
+
+        # If the node has one child, connect it straight to the parent
+        elif len(node_to_delete.children) == 1:
+            parent.children[index] = node_to_delete.children[0]
+
+        # If the node has multiple children, call another method to rearrange nodes
+        else:
+            self._delete_node_with_mult_children(node_to_delete)
+
+    # Searches for node's parent for further use in _delete_node method
+    def _find_parent(self, value, current):
+        if self.root:
+            for index, child in enumerate(current.children):
+                if child.value == value:
+                    return current, index
+                found = self._find_parent(value, child)
+                if found != (None, None):
+                    return found
+        return None, None
